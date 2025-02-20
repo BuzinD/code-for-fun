@@ -67,7 +67,7 @@ func newField(w, h int) *field {
 		yStart:   yStart,
 		xEnd:     xStart + poolWidth,
 		yEnd:     yStart + poolHeight,
-		pool:     make([][]bool, poolHeight),
+		pool:     make([][]bool, poolHeight-2),
 		scWidth:  w,
 		scHeight: h,
 	}
@@ -168,14 +168,12 @@ func drawBorder(s tcell.Screen, f *field) {
 
 func drawPool(s tcell.Screen, f *field) {
 	//s.Clear()
-	//
-	// Horizontal borders
-	for y := 1; y < len(f.pool); y++ {
-		for x := 1; x < len(f.pool[y]); x++ {
+	for y := 0; y < len(f.pool); y++ {
+		for x := 0; x < len(f.pool[y]); x++ {
 			if f.pool[y][x] {
-				s.SetContent(x+f.xStart, y+f.yStart, snakeB, nil, tcell.StyleDefault)
+				s.SetContent(x+f.xStart+1, y+f.yStart+1, snakeB, nil, tcell.StyleDefault)
 			} else {
-				s.SetContent(x+f.xStart, y+f.yStart, ' ', nil, tcell.StyleDefault)
+				s.SetContent(x+f.xStart+1, y+f.yStart+1, ' ', nil, tcell.StyleDefault)
 			}
 		}
 	}
