@@ -85,26 +85,14 @@ type snake struct {
 }
 
 func main() {
-	encoding.Register()
+	//encoding.Register()
+	s := initScreen()
 
-	s, e := tcell.NewScreen()
-	if e != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", e)
-		os.Exit(1)
-	}
-	if e := s.Init(); e != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", e)
-		os.Exit(1)
-	}
-
-	blackAndWhiteStyle := tcell.StyleDefault.
-		Background(tcell.ColorBlack).
-		Foreground(tcell.ColorWhite)
-	s.SetStyle(blackAndWhiteStyle)
 	w, h := s.Size()
 	f := newField(w, h)
 
-	//x, y := getCenter()
+	x, y := getCenter()
+	sn := &snake{x, y, up}
 
 	drawBorder(s, f)
 	f.pool[1] = []bool{true, true, true, true, true, true}
@@ -124,13 +112,17 @@ func main() {
 				s.Fini()
 				os.Exit(0)
 			case tcell.KeyLeft:
-				//todo key left move left
+				sn.dir = left
+				s.SetContent(1, 1, 'l', nil, tcell.StyleDefault)
 			case tcell.KeyRight:
-				//todo key right move right
+				sn.dir = right
+				s.SetContent(1, 1, 'r', nil, tcell.StyleDefault)
 			case tcell.KeyUp:
-				//todo move uo
+				sn.dir = up
+				s.SetContent(1, 1, 'u', nil, tcell.StyleDefault)
 			case tcell.KeyDown:
-				//todo move left
+				sn.dir = down
+				s.SetContent(1, 1, 'd', nil, tcell.StyleDefault)
 			case tcell.Key('p'):
 				fallthrough
 			case tcell.Key('P'):
@@ -142,6 +134,25 @@ func main() {
 
 		}
 	}
+}
+
+func initScreen() tcell.Screen {
+	s, e := tcell.NewScreen()
+	if e != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", e)
+		os.Exit(1)
+	}
+	if e := s.Init(); e != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", e)
+		os.Exit(1)
+	}
+
+	blackAndWhiteStyle := tcell.StyleDefault.
+		Background(tcell.ColorBlack).
+		Foreground(tcell.ColorWhite)
+	s.SetStyle(blackAndWhiteStyle)
+
+	return s
 }
 
 func drawBorder(s tcell.Screen, f *field) {
