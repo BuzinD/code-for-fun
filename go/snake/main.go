@@ -266,7 +266,14 @@ func main() {
 			case "down":
 				game.snake.dir = down
 			case "pause":
-				game.state = "paused"
+				if game.state == "paused" {
+					game.state = "playing"
+					drawBorders(s, f)
+				} else {
+					game.state = "paused"
+					displayTextOnCenter(s, "Game paused. Press 'p' to continue...")
+				}
+
 			case "move":
 				if game.state == "playing" {
 					if err := game.snake.move(); err != nil {
@@ -306,8 +313,11 @@ func readUserActions(ctx context.Context, s tcell.Screen, events chan string) {
 					events <- "up"
 				case tcell.KeyDown:
 					events <- "down"
-				case tcell.Key('p'), tcell.Key('P'):
-					events <- "pause"
+				case tcell.KeyRune:
+					switch ev.Rune() {
+					case 'p', 'P':
+						events <- "pause"
+					}
 				}
 			}
 		}
