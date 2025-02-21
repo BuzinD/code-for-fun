@@ -52,7 +52,7 @@ type apple struct {
 	x, y int
 }
 
-func (f *field) generateApple() *apple {
+func generateApple(f *field) *apple {
 	for {
 		x := rand.Intn(poolWidth - 2)
 		y := rand.Intn(poolHeight - 2)
@@ -119,14 +119,14 @@ func (f *field) move(sn *snake) error {
 
 	if game.apple.x == newX && game.apple.y == newY {
 		sn.putAppleIntoBody(newX, newY)
-		game.apple = f.generateApple()
+		game.apple = generateApple(f)
 	} else {
 		sn.moveBody(newX, newY)
 
 		f.pool[snakeTailY][snakeTailX] = false
 	}
 
-	//move in a pool
+	//move into a pool
 	f.pool[newY][newX] = true
 
 	return nil
@@ -191,7 +191,7 @@ func main() {
 	f := newField(w, h)
 	f.add(x, y)
 
-	game = gameState{"playing", 200, newSnake(x, y, up), f.generateApple()}
+	game = gameState{"playing", 200, newSnake(x, y, up), generateApple(f), 0}
 
 	drawBorder(s, f)
 	f.pool[1] = []bool{true, true, true, true, true, true}
