@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/gdamore/tcell"
 	"github.com/mattn/go-runewidth"
+	"math/rand"
 	"os"
 	"time"
 )
@@ -15,6 +16,7 @@ const (
 	poolHeight           = 40
 	border               = '|'
 	snakeB               = '█'
+	appleB               = '*'
 	up         direction = "up"
 	down       direction = "down"
 	left       direction = "left"
@@ -46,10 +48,25 @@ func displayTextOnCenter(s tcell.Screen, str string) {
 	s.Show()
 }
 
+type apple struct {
+	x, y int
+}
+
+func (f *field) generateApple() *apple {
+	for {
+		x := rand.Intn(poolWidth)
+		y := rand.Intn(poolHeight)
+		if !f.pool[y][x] {
+			return &apple{x, y}
+		}
+	}
+}
+
 type gameState struct {
 	state string
 	speed int64 // snake moving speed in milliseconds
 	snake *snake
+	apple *apple
 }
 
 type field struct {
@@ -100,13 +117,16 @@ func (f *field) move(sn *snake) error {
 		return errors.New("snake is already in a snake")
 	}
 
+	if game.apple.x == newX && game.apple.y == newY {
+		sn.putAppleIntoBody(newX, newY)
+	} else {
+		sn.moveBody(newX, newY)
+
+		f.pool[snakeTailY][snakeTailX] = false
+	}
+
 	//move in a pool
 	f.pool[newY][newX] = true
-	f.pool[snakeTailY][snakeTailX] = false
-
-	//change snake body
-	copy(sn.body[1:len(sn.body)], sn.body)
-	sn.body[0] = []int{newY, newX}
 
 	return nil
 }
@@ -144,6 +164,18 @@ type snake struct {
 	dir  direction
 }
 
+// putAppleIntoBody add elem into snake body
+func (s *snake) putAppleIntoBody(x int, y int) {
+	s.body = append(s.body, []int{-100, -100}) //make snake body more by one el
+	copy(s.body[1:], s.body)                   //shift all el to the tail
+	s.body[0] = []int{y, x}
+}
+
+func (s *snake) moveBody(x int, y int) {
+	copy(s.body[1:len(s.body)], s.body)
+	s.body[0] = []int{y, x}
+}
+
 func newSnake(x, y int, dir direction) *snake {
 	body := make([][]int, 1)
 	body[0] = []int{y, x}
@@ -154,11 +186,11 @@ func main() {
 	//encoding.Register()
 	s := initScreen()
 	x, y := getCenter()
-	game = gameState{"playing", 300, newSnake(x, y, up)}
-
 	w, h := s.Size()
 	f := newField(w, h)
 	f.add(x, y)
+
+	game = gameState{"playing", 200, newSnake(x, y, up), f.generateApple()}
 
 	drawBorder(s, f)
 	f.pool[1] = []bool{true, true, true, true, true, true}
@@ -303,4 +335,6 @@ func drawPool(s tcell.Screen, f *field) {
 			}
 		}
 	}
+
+	s.SetContent(game.apple.x+f.xStart+1, game.apple.y+f.yStart+1, appleB, nil, tcell.StyleDefault)
 }
