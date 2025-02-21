@@ -54,8 +54,8 @@ type apple struct {
 
 func (f *field) generateApple() *apple {
 	for {
-		x := rand.Intn(poolWidth)
-		y := rand.Intn(poolHeight)
+		x := rand.Intn(poolWidth - 1)
+		y := rand.Intn(poolHeight - 1)
 		if !f.pool[y][x] {
 			return &apple{x, y}
 		}
@@ -119,6 +119,7 @@ func (f *field) move(sn *snake) error {
 
 	if game.apple.x == newX && game.apple.y == newY {
 		sn.putAppleIntoBody(newX, newY)
+		game.apple = f.generateApple()
 	} else {
 		sn.moveBody(newX, newY)
 
