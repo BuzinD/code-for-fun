@@ -113,7 +113,7 @@ func (f *field) move(sn *snake) error {
 		return errors.New("snake out of range")
 	}
 
-	if f.pool[newX][newY] {
+	if f.pool[newY][newX] {
 		return errors.New("snake is already in a snake")
 	}
 
