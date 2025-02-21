@@ -59,6 +59,10 @@ type field struct {
 	scHeight                   int
 }
 
+func (f *field) add(x, y int) {
+	f.pool[y][x] = true
+}
+
 func (f *field) screenIsSmall() bool {
 	return f.xEnd > f.scWidth || f.yEnd > f.scHeight
 }
@@ -84,6 +88,7 @@ func newField(w, h int) *field {
 	}
 }
 
+// get center of field
 func getCenter() (x int, y int) {
 	return poolWidth / 2, poolHeight / 2
 }
@@ -91,19 +96,25 @@ func getCenter() (x int, y int) {
 type direction string
 
 type snake struct {
-	x, y int
+	body [][]int //presented by slice of []int{y, x} where y, x are coords in a pool
 	dir  direction
+}
+
+func newSnake(x, y int, dir direction) *snake {
+	body := make([][]int, 1)
+	body[0] = []int{y, x}
+	return &snake{body, dir}
 }
 
 func main() {
 	//encoding.Register()
 	s := initScreen()
+	x, y := getCenter()
+	game = gameState{"playing", 300, newSnake(x, y, up)}
 
 	w, h := s.Size()
 	f := newField(w, h)
-
-	x, y := getCenter()
-	sn := &snake{x, y, up}
+	f.add(x, y)
 
 	drawBorder(s, f)
 	f.pool[1] = []bool{true, true, true, true, true, true}
