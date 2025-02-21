@@ -63,10 +63,48 @@ func generateApple(f *field) *apple {
 }
 
 type gameState struct {
-	state string
-	speed int64 // snake moving speed in milliseconds
-	snake *snake
-	apple *apple
+	state        string
+	speed        int64 // snake moving speed in milliseconds
+	snake        *snake
+	apple        *apple
+	score        int32
+	cancelTicker context.CancelFunc
+	tickerCtx    context.Context
+	events       chan string
+}
+
+func (s *gameState) IncreaseScore() {
+	game.score++
+	s.increaseSnakeSpeed()
+}
+
+func (s *gameState) increaseSnakeSpeed() {
+	if s.score > 0 && s.score%2 == 0 {
+		if s.cancelTicker != nil {
+			s.cancelTicker()
+		} else {
+			fmt.Println("s.cancelTicker == nil")
+		}
+		game.speed -= 10
+		s.initTicker()
+	}
+}
+
+func (s *gameState) initTicker() {
+	s.tickerCtx, s.cancelTicker = context.WithCancel(context.Background())
+
+	ticker := time.NewTicker(time.Millisecond * time.Duration(game.speed))
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-s.tickerCtx.Done():
+				return
+			case <-ticker.C:
+				s.events <- "move"
+			}
+		}
+	}()
 }
 
 type field struct {
@@ -120,6 +158,7 @@ func (f *field) move(sn *snake) error {
 	if game.apple.x == newX && game.apple.y == newY {
 		sn.putAppleIntoBody(newX, newY)
 		game.apple = generateApple(f)
+		game.IncreaseScore()
 	} else {
 		sn.moveBody(newX, newY)
 
@@ -183,28 +222,34 @@ func newSnake(x, y int, dir direction) *snake {
 	return &snake{body, dir}
 }
 
+func newGame(snX, snY int, f *field) {
+	game = gameState{state: "playing", speed: 300, snake: newSnake(snX, snY, up), apple: generateApple(f), score: 0}
+	game.events = make(chan string)
+	game.initTicker()
+}
+
 func main() {
-	//encoding.Register()
 	s := initScreen()
 	x, y := getCenter()
 	w, h := s.Size()
 	f := newField(w, h)
 	f.add(x, y)
 
-	game = gameState{"playing", 200, newSnake(x, y, up), generateApple(f), 0}
+	newGame(x, y, f)
+	defer game.cancelTicker()
+	defer close(game.events)
 
 	drawBorder(s, f)
-	f.pool[1] = []bool{true, true, true, true, true, true}
 	drawPool(s, f)
 	ctx, cancel := context.WithCancel(context.Background())
-	events := make(chan string)
-	defer close(events)
-	readUserActions(ctx, s, events)
-	i := 0
+	readUserActions(ctx, s, game.events)
+
+	drawState(s)
+	s.Show()
+
 	for {
 		select {
-		case event := <-events:
-			emitStr(s, 1, 1, tcell.StyleDefault, event)
+		case event := <-game.events:
 			s.Show()
 			switch event {
 			case "resize":
@@ -230,13 +275,12 @@ func main() {
 				game.state = "paused"
 			case "move":
 				if game.state == "playing" {
-					i++
-					emitStr(s, 0, 0, tcell.StyleDefault, fmt.Sprintf("Moving %d", i))
 					if err := f.move(game.snake); err != nil {
 						game.state = "game_over"
 						displayTextOnCenter(s, "Game Over")
 					} else {
 						drawPool(s, f)
+						drawState(s)
 						s.Show()
 					}
 				}
@@ -245,8 +289,11 @@ func main() {
 	}
 }
 
-func readUserActions(ctx context.Context, s tcell.Screen, events chan string) {
+func drawState(s tcell.Screen) {
+	emitStr(s, 0, 0, tcell.StyleDefault, fmt.Sprintf("Score: %d", game.score))
+}
 
+func readUserActions(ctx context.Context, s tcell.Screen, events chan string) {
 	go func(ctx context.Context) {
 		for {
 			ev := s.PollEvent() // Блокирующий вызов, ждет событие
@@ -271,19 +318,6 @@ func readUserActions(ctx context.Context, s tcell.Screen, events chan string) {
 			}
 		}
 	}(ctx)
-
-	ticker := time.NewTicker(time.Millisecond * time.Duration(game.speed))
-	go func() {
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				events <- "move"
-			}
-		}
-	}()
 }
 
 func initScreen() tcell.Screen {
