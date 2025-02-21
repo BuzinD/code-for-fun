@@ -52,14 +52,24 @@ type apple struct {
 	x, y int
 }
 
-func generateApple(f *field) *apple {
+func generateApple(s *snake) *apple {
 	for {
 		x := rand.Intn(poolWidth - 2)
 		y := rand.Intn(poolHeight - 2)
-		if !f.pool[y][x] {
+		if !onSnake(x, y, s) {
 			return &apple{x, y}
 		}
 	}
+}
+
+func onSnake(x, y int, s *snake) bool {
+	for _, v := range s.body {
+		if v[1] == x && v[0] == y {
+			return true
+		}
+	}
+
+	return false
 }
 
 type gameState struct {
@@ -109,25 +119,19 @@ func (s *gameState) initTicker() {
 
 type field struct {
 	xStart, yStart, xEnd, yEnd int
-	pool                       [][]bool
 	scWidth                    int
 	scHeight                   int
-}
-
-func (f *field) add(x, y int) {
-	f.pool[y][x] = true
 }
 
 func (f *field) screenIsSmall() bool {
 	return f.xEnd > f.scWidth || f.yEnd > f.scHeight
 }
 
-func (f *field) move(sn *snake) error {
+func (sn *snake) move() error {
 	snakeHeadY := sn.body[0][0]
 	snakeHeadX := sn.body[0][1]
-	snakeTailY := sn.body[len(sn.body)-1][0]
-	snakeTailX := sn.body[len(sn.body)-1][1]
 	var newX, newY int
+
 	switch sn.dir {
 	case up:
 		newX = snakeHeadX
@@ -151,22 +155,18 @@ func (f *field) move(sn *snake) error {
 		return errors.New("snake out of range")
 	}
 
-	if f.pool[newY][newX] {
+	if onSnake(newX, newY, sn) {
 		return errors.New("snake is already in a snake")
 	}
 
 	if game.apple.x == newX && game.apple.y == newY {
 		sn.putAppleIntoBody(newX, newY)
-		game.apple = generateApple(f)
+		game.apple = generateApple(sn)
 		game.IncreaseScore()
 	} else {
 		sn.moveBody(newX, newY)
 
-		f.pool[snakeTailY][snakeTailX] = false
 	}
-
-	//move into a pool
-	f.pool[newY][newX] = true
 
 	return nil
 }
@@ -175,18 +175,11 @@ func newField(w, h int) *field {
 	xStart := (w - poolWidth) / 2
 	yStart := (h - poolHeight) / 2
 
-	pool := make([][]bool, poolHeight-2) //pool heights - 2 (it's a borders)
-
-	for i := range pool {
-		pool[i] = make([]bool, poolWidth-2) //pool widths - 2 (it's a borders)
-	}
-
 	return &field{
 		xStart:   xStart,
 		yStart:   yStart,
 		xEnd:     xStart + poolWidth,
 		yEnd:     yStart + poolHeight,
-		pool:     pool,
 		scWidth:  w,
 		scHeight: h,
 	}
@@ -222,25 +215,26 @@ func newSnake(x, y int, dir direction) *snake {
 	return &snake{body, dir}
 }
 
-func newGame(snX, snY int, f *field) {
-	game = gameState{state: "playing", speed: 300, snake: newSnake(snX, snY, up), apple: generateApple(f), score: 0}
+func newGame() {
+	snX, snY := getCenter()
+	sn := newSnake(snX, snY, up)
+	game = gameState{state: "playing", speed: 300, snake: sn, apple: generateApple(sn), score: 0}
 	game.events = make(chan string)
 	game.initTicker()
 }
 
 func main() {
 	s := initScreen()
-	x, y := getCenter()
+
 	w, h := s.Size()
 	f := newField(w, h)
-	f.add(x, y)
 
-	newGame(x, y, f)
+	newGame()
 	defer game.cancelTicker()
 	defer close(game.events)
 
-	drawBorder(s, f)
-	drawPool(s, f)
+	drawBorders(s, f)
+	drawSnake(s, f)
 	ctx, cancel := context.WithCancel(context.Background())
 	readUserActions(ctx, s, game.events)
 
@@ -256,8 +250,8 @@ func main() {
 				s.Sync()
 				w, h := s.Size()
 				f = newField(w, h)
-				drawBorder(s, f)
-				drawPool(s, f)
+				drawBorders(s, f)
+				drawSnake(s, f)
 				s.Show()
 			case "quit":
 				s.Fini()
@@ -275,11 +269,11 @@ func main() {
 				game.state = "paused"
 			case "move":
 				if game.state == "playing" {
-					if err := f.move(game.snake); err != nil {
+					if err := game.snake.move(); err != nil {
 						game.state = "game_over"
 						displayTextOnCenter(s, "Game Over")
 					} else {
-						drawPool(s, f)
+						drawSnake(s, f)
 						drawState(s)
 						s.Show()
 					}
@@ -339,7 +333,7 @@ func initScreen() tcell.Screen {
 	return s
 }
 
-func drawBorder(s tcell.Screen, f *field) {
+func drawBorders(s tcell.Screen, f *field) {
 
 	if f.screenIsSmall() {
 		displayTextOnCenter(s, "Make your screen greater")
@@ -363,18 +357,19 @@ func drawBorder(s tcell.Screen, f *field) {
 	}
 }
 
-func drawPool(s tcell.Screen, f *field) {
+func drawSnake(s tcell.Screen, f *field) {
 	if game.state != "playing" {
 		return
 	}
-	for y := 0; y < len(f.pool); y++ {
-		for x := 0; x < len(f.pool[y]); x++ {
-			if f.pool[y][x] {
-				s.SetContent(x+f.xStart+1, y+f.yStart+1, snakeB, nil, tcell.StyleDefault)
-			} else {
-				s.SetContent(x+f.xStart+1, y+f.yStart+1, ' ', nil, tcell.StyleDefault)
-			}
+
+	for y := 0; y < poolHeight-2; y++ {
+		for x := 0; x < poolWidth-2; x++ {
+			s.SetContent(x+f.xStart+1, y+f.yStart+1, ' ', nil, tcell.StyleDefault)
 		}
+	}
+
+	for _, p := range game.snake.body {
+		s.SetContent(p[1]+f.xStart+1, p[0]+f.yStart+1, snakeB, nil, tcell.StyleDefault)
 	}
 
 	s.SetContent(game.apple.x+f.xStart+1, game.apple.y+f.yStart+1, appleB, nil, tcell.StyleDefault)
