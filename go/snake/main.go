@@ -343,8 +343,10 @@ func drawBorder(s tcell.Screen, f *field) {
 
 	if f.screenIsSmall() {
 		displayTextOnCenter(s, "Make your screen greater")
+		game.state = "screen_is_small"
 		return
 	}
+	game.state = "playing"
 
 	s.Clear()
 
@@ -362,6 +364,9 @@ func drawBorder(s tcell.Screen, f *field) {
 }
 
 func drawPool(s tcell.Screen, f *field) {
+	if game.state != "playing" {
+		return
+	}
 	for y := 0; y < len(f.pool); y++ {
 		for x := 0; x < len(f.pool[y]); x++ {
 			if f.pool[y][x] {
