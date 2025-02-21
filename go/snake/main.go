@@ -54,8 +54,8 @@ type apple struct {
 
 func (f *field) generateApple() *apple {
 	for {
-		x := rand.Intn(poolWidth - 1)
-		y := rand.Intn(poolHeight - 1)
+		x := rand.Intn(poolWidth - 2)
+		y := rand.Intn(poolHeight - 2)
 		if !f.pool[y][x] {
 			return &apple{x, y}
 		}
