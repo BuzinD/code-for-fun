@@ -92,7 +92,7 @@ func (f *field) move(sn *snake) error {
 		return errors.New("snake out of range")
 	}
 
-	if newX >= f.xEnd || newY >= f.yEnd {
+	if newX >= poolWidth-2 || newY >= poolHeight-2 {
 		return errors.New("snake out of range")
 	}
 
@@ -115,10 +115,10 @@ func newField(w, h int) *field {
 	xStart := (w - poolWidth) / 2
 	yStart := (h - poolHeight) / 2
 
-	pool := make([][]bool, poolHeight-2)
+	pool := make([][]bool, poolHeight-2) //pool heights - 2 (it's a borders)
 
 	for i := range pool {
-		pool[i] = make([]bool, w-2)
+		pool[i] = make([]bool, poolWidth-2) //pool widths - 2 (it's a borders)
 	}
 
 	return &field{
