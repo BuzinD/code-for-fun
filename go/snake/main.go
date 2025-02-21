@@ -67,12 +67,18 @@ func newField(w, h int) *field {
 	xStart := (w - poolWidth) / 2
 	yStart := (h - poolHeight) / 2
 
+	pool := make([][]bool, poolHeight-2)
+
+	for i := range pool {
+		pool[i] = make([]bool, w-2)
+	}
+
 	return &field{
 		xStart:   xStart,
 		yStart:   yStart,
 		xEnd:     xStart + poolWidth,
 		yEnd:     yStart + poolHeight,
-		pool:     make([][]bool, poolHeight-2),
+		pool:     pool,
 		scWidth:  w,
 		scHeight: h,
 	}
