@@ -1,11 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/gdamore/tcell"
-	"github.com/gdamore/tcell/encoding"
 	"github.com/mattn/go-runewidth"
 	"os"
+	"time"
 )
 
 const (
@@ -99,23 +100,12 @@ func main() {
 	drawBorder(s, f)
 	f.pool[1] = []bool{true, true, true, true, true, true}
 	drawPool(s, f)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	events := make(chan string)
 	defer close(events)
 	readUserActions(ctx, s, events)
 	i := 0
 	for {
-		switch ev := s.PollEvent().(type) {
-		case *tcell.EventResize:
-			s.Sync()
-			w, h := s.Size()
-			f = newField(w, h)
-			drawBorder(s, f)
-			drawPool(s, f)
-		case *tcell.EventKey:
-			switch ev.Key() {
-			case tcell.KeyEscape:
 		select {
 		case event := <-events:
 			emitStr(s, 1, 1, tcell.StyleDefault, event)
@@ -132,24 +122,6 @@ func main() {
 				s.Fini()
 				cancel()
 				os.Exit(0)
-			case tcell.KeyLeft:
-				sn.dir = left
-				s.SetContent(1, 1, 'l', nil, tcell.StyleDefault)
-			case tcell.KeyRight:
-				sn.dir = right
-				s.SetContent(1, 1, 'r', nil, tcell.StyleDefault)
-			case tcell.KeyUp:
-				sn.dir = up
-				s.SetContent(1, 1, 'u', nil, tcell.StyleDefault)
-			case tcell.KeyDown:
-				sn.dir = down
-				s.SetContent(1, 1, 'd', nil, tcell.StyleDefault)
-			case tcell.Key('p'):
-				fallthrough
-			case tcell.Key('P'):
-				//todo pause
-			default:
-				//don't do something
 			case "left":
 				game.snake.dir = left
 			case "right":
@@ -161,6 +133,16 @@ func main() {
 			case "pause":
 				game.state = "paused"
 			case "move":
+				if game.state == "playing" {
+					i++
+					emitStr(s, 0, 0, tcell.StyleDefault, fmt.Sprintf("Moving %d", i))
+					if err := f.move(game.snake); err != nil {
+						//todo game over
+					} else {
+						drawPool(s, f)
+						s.Show()
+					}
+				}
 			}
 		}
 	}
