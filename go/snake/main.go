@@ -43,8 +43,10 @@ func displayTextOnCenter(s tcell.Screen, str string) {
 	s.Show()
 }
 
-type game struct {
+type gameState struct {
 	state string
+	speed int64 // snake moving speed in milliseconds
+	snake *snake
 }
 
 type field struct {
@@ -98,6 +100,11 @@ func main() {
 	f.pool[1] = []bool{true, true, true, true, true, true}
 	drawPool(s, f)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	events := make(chan string)
+	defer close(events)
+	readUserActions(ctx, s, events)
+	i := 0
 	for {
 		switch ev := s.PollEvent().(type) {
 		case *tcell.EventResize:
@@ -109,7 +116,21 @@ func main() {
 		case *tcell.EventKey:
 			switch ev.Key() {
 			case tcell.KeyEscape:
+		select {
+		case event := <-events:
+			emitStr(s, 1, 1, tcell.StyleDefault, event)
+			s.Show()
+			switch event {
+			case "resize":
+				s.Sync()
+				w, h := s.Size()
+				f = newField(w, h)
+				drawBorder(s, f)
+				drawPool(s, f)
+				s.Show()
+			case "quit":
 				s.Fini()
+				cancel()
 				os.Exit(0)
 			case tcell.KeyLeft:
 				sn.dir = left
@@ -129,11 +150,61 @@ func main() {
 				//todo pause
 			default:
 				//don't do something
+			case "left":
+				game.snake.dir = left
+			case "right":
+				game.snake.dir = right
+			case "up":
+				game.snake.dir = up
+			case "down":
+				game.snake.dir = down
+			case "pause":
+				game.state = "paused"
+			case "move":
 			}
-			//case snake:
-
 		}
 	}
+}
+
+func readUserActions(ctx context.Context, s tcell.Screen, events chan string) {
+
+	go func(ctx context.Context) {
+		for {
+			ev := s.PollEvent() // Блокирующий вызов, ждет событие
+			switch ev := ev.(type) {
+			case *tcell.EventResize:
+				events <- "resize"
+			case *tcell.EventKey:
+				switch ev.Key() {
+				case tcell.KeyEscape:
+					events <- "quit"
+				case tcell.KeyLeft:
+					events <- "left"
+				case tcell.KeyRight:
+					events <- "right"
+				case tcell.KeyUp:
+					events <- "up"
+				case tcell.KeyDown:
+					events <- "down"
+				case tcell.Key('p'), tcell.Key('P'):
+					events <- "pause"
+				}
+			}
+		}
+	}(ctx)
+
+	ticker := time.NewTicker(time.Millisecond * time.Duration(game.speed))
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				events <- "move"
+			}
+		}
+	}()
 }
 
 func initScreen() tcell.Screen {
@@ -178,7 +249,6 @@ func drawBorder(s tcell.Screen, f *field) {
 }
 
 func drawPool(s tcell.Screen, f *field) {
-	//s.Clear()
 	for y := 0; y < len(f.pool); y++ {
 		for x := 0; x < len(f.pool[y]); x++ {
 			if f.pool[y][x] {
