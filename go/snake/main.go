@@ -79,7 +79,7 @@ func (f *field) move(sn *snake) error {
 		newY = snakeHeadY - 1
 	case down:
 		newX = snakeHeadX
-		newY = snakeHeadY - 1
+		newY = snakeHeadY + 1
 	case left:
 		newX = snakeHeadX - 1
 		newY = snakeHeadY
