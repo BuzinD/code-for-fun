@@ -67,6 +67,50 @@ func (f *field) screenIsSmall() bool {
 	return f.xEnd > f.scWidth || f.yEnd > f.scHeight
 }
 
+func (f *field) move(sn *snake) error {
+	snakeHeadY := sn.body[0][0]
+	snakeHeadX := sn.body[0][1]
+	snakeTailY := sn.body[len(sn.body)-1][0]
+	snakeTailX := sn.body[len(sn.body)-1][1]
+	var newX, newY int
+	switch sn.dir {
+	case up:
+		newX = snakeHeadX
+		newY = snakeHeadY - 1
+	case down:
+		newX = snakeHeadX
+		newY = snakeHeadY - 1
+	case left:
+		newX = snakeHeadX - 1
+		newY = snakeHeadY
+	case right:
+		newX = snakeHeadX + 1
+		newY = snakeHeadY
+	}
+
+	if newX < 0 || newY < 0 {
+		return errors.New("snake out of range")
+	}
+
+	if newX >= f.xEnd || newY >= f.yEnd {
+		return errors.New("snake out of range")
+	}
+
+	if f.pool[newX][newY] {
+		return errors.New("snake is already in a snake")
+	}
+
+	//move in a pool
+	f.pool[newY][newX] = true
+	f.pool[snakeTailY][snakeTailX] = false
+
+	//change snake body
+	copy(sn.body[1:len(sn.body)], sn.body)
+	sn.body[0] = []int{newY, newX}
+
+	return nil
+}
+
 func newField(w, h int) *field {
 	xStart := (w - poolWidth) / 2
 	yStart := (h - poolHeight) / 2
