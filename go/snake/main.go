@@ -233,7 +233,8 @@ func main() {
 					i++
 					emitStr(s, 0, 0, tcell.StyleDefault, fmt.Sprintf("Moving %d", i))
 					if err := f.move(game.snake); err != nil {
-						//todo game over
+						game.state = "game_over"
+						displayTextOnCenter(s, "Game Over")
 					} else {
 						drawPool(s, f)
 						s.Show()
